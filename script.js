@@ -407,6 +407,12 @@ function esc(str) {
   return str.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// Output a JS-safe literal for onclick handlers: null -> null, string -> 'escaped'
+function jsArg(val) {
+  if (val === null || val === undefined) return "null";
+  return "'" + esc(String(val)) + "'";
+}
+
 /* ============ 4. TOAST NOTIFICATIONS ============ */
 function showToast(message, type = "info") {
   const container = document.getElementById("toastContainer");
@@ -1446,14 +1452,14 @@ function renderCartItemsHTML() {
           <div class="cart-row-name">${esc(p.name)}</div>
           <div class="cart-row-meta">${item.color ? `Color: ${esc(item.color)}` : ""} ${item.size ? ` | Size: ${esc(item.size)}` : ""}</div>
           <div class="cart-row-actions">
-            <a onclick="moveToWishlist(${p.id}, '${esc(item.color)}', '${esc(item.size)}')">Move to Wishlist</a>
-            <a onclick="removeFromCart(${p.id}, '${esc(item.color)}', '${esc(item.size)}')">Remove</a>
+            <a onclick="moveToWishlist(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)})">Move to Wishlist</a>
+            <a onclick="removeFromCart(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)})">Remove</a>
           </div>
           <div class="cart-item-controls" style="margin-top:10px">
             <div class="qty-selector">
-              <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', -1)">−</button>
-              <input type="text" class="qty-val" value="${item.qty}" onchange="setCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
-              <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', 1)">+</button>
+              <button class="qty-btn" onclick="updateCartQty(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)}, -1)">−</button>
+              <input type="text" class="qty-val" value="${item.qty}" onchange="setCartQty(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
+              <button class="qty-btn" onclick="updateCartQty(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)}, 1)">+</button>
             </div>
           </div>
         </div>
@@ -1518,11 +1524,11 @@ function updateCartDrawer() {
           <div class="cart-item-price">${formatPrice(p.salePrice * item.qty)} <span class="cart-item-old">${formatPrice(p.originalPrice * item.qty)}</span></div>
           <div class="cart-item-controls">
             <div class="qty-selector">
-              <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', -1)">−</button>
-              <input type="text" class="qty-val" value="${item.qty}" onchange="setCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
-              <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', 1)">+</button>
+              <button class="qty-btn" onclick="updateCartQty(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)}, -1)">−</button>
+              <input type="text" class="qty-val" value="${item.qty}" onchange="setCartQty(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)}, this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
+              <button class="qty-btn" onclick="updateCartQty(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)}, 1)">+</button>
             </div>
-            <a class="cart-item-remove" onclick="removeFromCart(${p.id}, '${esc(item.color)}', '${esc(item.size)}')">Remove</a>
+            <a class="cart-item-remove" onclick="removeFromCart(${p.id}, ${jsArg(item.color)}, ${jsArg(item.size)})">Remove</a>
           </div>
         </div>
       </div>
