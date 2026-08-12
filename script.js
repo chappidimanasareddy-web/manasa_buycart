@@ -1266,7 +1266,26 @@ function updateCartQty(id, color, size, delta) {
   const item = state.cart.find(i => i.id === id && i.color === color && i.size === size);
   if (!item) return;
   const p = getProduct(id);
-  item.qty = Math.max(1, Math.min(p.stock, item.qty + delta));
+  const newQty = item.qty + delta;
+  if (newQty < 1) {
+    removeFromCart(id, color, size);
+    return;
+  }
+  item.qty = Math.min(p.stock, newQty);
+  saveCart();
+  refreshCartUI();
+}
+
+function setCartQty(id, color, size, value) {
+  const item = state.cart.find(i => i.id === id && i.color === color && i.size === size);
+  if (!item) return;
+  const p = getProduct(id);
+  const qty = parseInt(value, 10);
+  if (isNaN(qty) || qty < 1) {
+    removeFromCart(id, color, size);
+    return;
+  }
+  item.qty = Math.min(p.stock, qty);
   saveCart();
   refreshCartUI();
 }
@@ -1433,7 +1452,7 @@ function renderCartItemsHTML() {
           <div class="cart-item-controls" style="margin-top:10px">
             <div class="qty-selector">
               <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', -1)">−</button>
-              <input type="text" class="qty-val" value="${item.qty}" readonly />
+              <input type="text" class="qty-val" value="${item.qty}" onchange="setCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
               <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', 1)">+</button>
             </div>
           </div>
@@ -1500,7 +1519,7 @@ function updateCartDrawer() {
           <div class="cart-item-controls">
             <div class="qty-selector">
               <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', -1)">−</button>
-              <input type="text" class="qty-val" value="${item.qty}" readonly />
+              <input type="text" class="qty-val" value="${item.qty}" onchange="setCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', this.value)" onkeydown="if(event.key==='Enter')this.blur()" />
               <button class="qty-btn" onclick="updateCartQty(${p.id}, '${esc(item.color)}', '${esc(item.size)}', 1)">+</button>
             </div>
             <a class="cart-item-remove" onclick="removeFromCart(${p.id}, '${esc(item.color)}', '${esc(item.size)}')">Remove</a>
@@ -2664,8 +2683,174 @@ function init() {
     }
   });
 
+  // Chatbot
+  initChatbot();
+
   // Render the home page
   renderHome();
+}
+
+/* ============ 20. AI CHATBOT ============ */
+const chatbotKnowledge = [
+  { keys: ["hi", "hello", "hey", "greetings"], reply: "Hello! Welcome to BUYCART. I can help you find products, track orders, answer shipping questions, and more. What can I do for you?" },
+  { keys: ["shipping", "delivery", "deliver", "ship"], reply: "We offer free shipping on orders over ₹499. Standard delivery takes 3-5 business days, and express delivery (1-2 days) is available for ₹49. We deliver to all major cities across India." },
+  { keys: ["return", "refund", "exchange", "replace"], reply: "You can return any item within 7 days of delivery for a full refund or exchange. The product must be unused and in its original packaging. Refunds are processed within 5-7 business days." },
+  { keys: ["track", "order status", "where is my order", "my order"], reply: "You can track your order by going to the Account page and clicking on the 'Orders' tab. There you'll see the status of all your orders with estimated delivery dates." },
+  { keys: ["payment", "pay", "card", "upi", "cod", "cash on delivery"], reply: "We accept UPI (Google Pay, PhonePe, Paytm), credit/debit cards (Visa, Mastercard, RuPay), net banking, and Cash on Delivery. All online payments are secured with 256-bit encryption." },
+  { keys: ["cancel", "cancel order", "cancellation"], reply: "You can cancel an order before it's shipped. Go to your Account > Orders, find the order, and click 'Cancel'. If it's already shipped, you can return it after delivery for a full refund." },
+  { keys: ["discount", "coupon", "promo", "offer", "deal", "sale"], reply: "We have ongoing sales with up to 70% off! Check the home page for the latest deals. You can also use coupon code WELCOME10 for 10% off your first order." },
+  { keys: ["login", "sign in", "signin", "log in", "account", "register", "sign up", "signup"], reply: "You can create an account or log in by clicking the 'Login' button in the top right corner. We support email and mobile number login with a password." },
+  { keys: ["wishlist", "wish list", "favorite", "favourite", "save"], reply: "Your wishlist lets you save products to buy later. Click the heart icon on any product to add it to your wishlist. You can view all saved items under Account > Wishlist." },
+  { keys: ["contact", "support", "help", "customer care", "phone", "email"], reply: "You can reach us at support@buycart.com or call 1800-123-4567 (toll-free, 9 AM - 9 PM). You can also use the Contact page on our website to send a message." },
+  { keys: ["password", "forgot password", "reset password", "change password"], reply: "If you forgot your password, click 'Login' then 'Forgot Password'. You'll receive a reset link on your email or mobile number to set a new password." },
+  { keys: ["category", "categories", "what do you sell", "products do you have"], reply: "We sell a wide range of products across categories: Electronics, Fashion, Home & Kitchen, Beauty, Sports, Books, Toys, and more. Browse our categories from the home page!" },
+  { keys: ["thank", "thanks", "thank you"], reply: "You're welcome! Is there anything else I can help you with?" },
+  { keys: ["bye", "goodbye", "see you"], reply: "Goodbye! Thanks for shopping with BUYCART. Have a great day!" },
+];
+
+const chatbotQuickReplies = [
+  "Track my order",
+  "Shipping info",
+  "Return policy",
+  "Payment methods",
+  "Current offers",
+];
+
+function initChatbot() {
+  const fab = document.getElementById("chatbotFab");
+  const win = document.getElementById("chatbotWindow");
+  const closeBtn = document.getElementById("chatbotClose");
+  const form = document.getElementById("chatbotForm");
+  const input = document.getElementById("chatbotInput");
+  const quickWrap = document.getElementById("chatbotQuick");
+
+  fab.addEventListener("click", () => {
+    const isOpen = win.classList.toggle("open");
+    win.setAttribute("aria-hidden", !isOpen);
+    if (isOpen && document.getElementById("chatbotMessages").children.length === 0) {
+      addChatbotMessage("bot", "Hi! I'm your BUYCART shopping assistant. Ask me about products, orders, shipping, returns, or anything else!");
+      renderQuickReplies();
+    }
+    if (isOpen) input.focus();
+  });
+
+  closeBtn.addEventListener("click", () => {
+    win.classList.remove("open");
+    win.setAttribute("aria-hidden", "true");
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    addChatbotMessage("user", text);
+    input.value = "";
+    quickWrap.innerHTML = "";
+    showTypingIndicator();
+    setTimeout(() => {
+      removeTypingIndicator();
+      const reply = getChatbotResponse(text);
+      addChatbotMessage("bot", reply);
+      renderQuickReplies();
+    }, 600 + Math.random() * 500);
+  });
+}
+
+function addChatbotMessage(sender, text) {
+  const msgContainer = document.getElementById("chatbotMessages");
+  const msg = document.createElement("div");
+  msg.className = `chatbot-msg ${sender}`;
+  msg.textContent = text;
+  msgContainer.appendChild(msg);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function showTypingIndicator() {
+  const msgContainer = document.getElementById("chatbotMessages");
+  const typing = document.createElement("div");
+  typing.className = "chatbot-msg bot typing";
+  typing.id = "chatbotTyping";
+  typing.innerHTML = "<span></span><span></span><span></span>";
+  msgContainer.appendChild(typing);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const typing = document.getElementById("chatbotTyping");
+  if (typing) typing.remove();
+}
+
+function renderQuickReplies() {
+  const quickWrap = document.getElementById("chatbotQuick");
+  quickWrap.innerHTML = "";
+  chatbotQuickReplies.forEach(q => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chatbot-quick-btn";
+    btn.textContent = q;
+    btn.addEventListener("click", () => {
+      addChatbotMessage("user", q);
+      quickWrap.innerHTML = "";
+      showTypingIndicator();
+      setTimeout(() => {
+        removeTypingIndicator();
+        addChatbotMessage("bot", getChatbotResponse(q));
+        renderQuickReplies();
+      }, 500 + Math.random() * 400);
+    });
+    quickWrap.appendChild(btn);
+  });
+}
+
+function getChatbotResponse(text) {
+  const lower = text.toLowerCase().trim();
+
+  if (lower.includes("search") || lower.includes("find") || lower.includes("looking for")) {
+    const terms = lower.replace(/.*(search|find|looking for)\s*(for)?\s*/, "").trim();
+    if (terms) {
+      const matches = PRODUCTS.filter(p =>
+        p.name.toLowerCase().includes(terms) ||
+        p.category.toLowerCase().includes(terms) ||
+        p.brand.toLowerCase().includes(terms)
+      ).slice(0, 3);
+      if (matches.length) {
+        let reply = `I found ${matches.length} product${matches.length > 1 ? "s" : ""} matching "${terms}":\n`;
+        matches.forEach((p, i) => {
+          reply += `\n${i + 1}. ${p.name} — ${formatPrice(p.salePrice)} (${p.category})`;
+        });
+        reply += "\n\nWould you like to browse our full catalog?";
+        return reply;
+      }
+      return `I couldn't find exact matches for "${terms}", but you can browse our categories from the home page. Try searching with a different keyword!`;
+    }
+  }
+
+  if (lower.includes("price") || lower.includes("cost") || lower.includes("how much")) {
+    const matches = PRODUCTS.filter(p =>
+      lower.includes(p.name.toLowerCase().split(" ")[0]) ||
+      lower.includes(p.category.toLowerCase())
+    ).slice(0, 2);
+    if (matches.length) {
+      let reply = "Here are some prices:\n";
+      matches.forEach(p => {
+        reply += `\n• ${p.name}: ${formatPrice(p.salePrice)} (was ${formatPrice(p.originalPrice)})`;
+      });
+      return reply;
+    }
+    return "Prices vary by product. Browse our catalog to see current sale prices — we have discounts up to 70% off!";
+  }
+
+  for (const entry of chatbotKnowledge) {
+    if (entry.keys.some(k => lower.includes(k))) {
+      return entry.reply;
+    }
+  }
+
+  if (lower.includes("cart") || lower.includes("add to cart")) {
+    return "To add a product to your cart, click the 'Add to Cart' button on any product. You can adjust quantities in the cart page by typing a number or using the +/− buttons. Press − at quantity 1 to remove an item!";
+  }
+
+  return "I'm not sure I understand. I can help with: finding products, tracking orders, shipping & delivery, returns & refunds, payment methods, discounts, and account questions. Try asking about one of those!";
 }
 
 // Start the app when DOM is ready

@@ -127,6 +127,33 @@
       </div>
     </div>
 
+    <!-- ============ AI CHATBOT ============ -->
+    <button class="chatbot-fab" id="chatbotFab" aria-label="Chat with assistant">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <div class="chatbot-window" id="chatbotWindow" aria-hidden="true">
+      <div class="chatbot-header">
+        <div class="chatbot-header-info">
+          <div class="chatbot-avatar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>
+            <div class="chatbot-title">BUYCART Assistant</div>
+            <div class="chatbot-status"><span class="chatbot-dot"></span> Online</div>
+          </div>
+        </div>
+        <button class="chatbot-close" id="chatbotClose" aria-label="Close chat">&times;</button>
+      </div>
+      <div class="chatbot-messages" id="chatbotMessages"></div>
+      <div class="chatbot-quick" id="chatbotQuick"></div>
+      <form class="chatbot-input-wrap" id="chatbotForm">
+        <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Ask me anything..." autocomplete="off" />
+        <button type="submit" class="chatbot-send" aria-label="Send">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </form>
+    </div>
+
     <!-- ============ TOAST CONTAINER ============ -->
     <div class="toast-container" id="toastContainer"></div>
 
